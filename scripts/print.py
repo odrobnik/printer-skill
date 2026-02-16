@@ -11,6 +11,7 @@ printer's PPD file at runtime.
 
 import argparse
 import json as json_mod
+import os
 import re
 import subprocess
 import sys
@@ -40,37 +41,60 @@ def is_image(file_path):
     return file_path.suffix.lower() in IMAGE_EXTENSIONS
 
 
+def _resolve_allowed_roots() -> list[Path]:
+    """Build the list of directories from which printing is allowed.
+
+    Allowed roots (in order):
+      1. OPENCLAW_WORKSPACE env var
+      2. CWD (if it contains a skills/ directory — likely a workspace)
+      3. /tmp
+    """
+    roots: list[Path] = []
+
+    ws = os.environ.get("OPENCLAW_WORKSPACE")
+    if ws:
+        roots.append(Path(ws).resolve())
+
+    cwd = Path.cwd().resolve()
+    if (cwd / "skills").is_dir() and cwd not in roots:
+        roots.append(cwd)
+
+    roots.append(Path("/tmp").resolve())
+    return roots
+
+
 def _validate_file_path(file_path: Path) -> Path:
     """Validate and resolve a file path for printing.
 
-    Guards against path traversal, symlink attacks, and restricts to
-    printable file types. Returns the resolved absolute path.
+    Security checks:
+      1. Resolve symlinks, then verify the *real* path is inside an
+         allowed root (workspace or /tmp). This lets symlinks within
+         the workspace work while blocking ``ln -s ~/.ssh/id_rsa x.pdf``.
+      2. Verify the *resolved* file has a printable extension.
     """
-    # Check the literal path first (before resolving symlinks)
     if not file_path.exists():
         raise ValueError(f"Not a file: {file_path}")
 
-    # Block symlinks — prevents symlink-based information disclosure
-    # (e.g., ln -s ~/.ssh/id_rsa secrets.pdf)
-    literal = Path(file_path).absolute()
-    if literal.is_symlink():
-        raise ValueError(
-            f"Symlinks are not allowed for security reasons: {file_path}"
-        )
-
-    resolved = literal.resolve()
+    resolved = file_path.resolve()
 
     # Must be a regular file (not a device, directory, etc.)
     if not resolved.is_file():
         raise ValueError(f"Not a regular file: {file_path}")
 
-    # Restrict to printable file types (check BOTH the literal and resolved names)
-    for p in (literal, resolved):
-        if p.suffix.lower() not in PRINTABLE_EXTENSIONS:
-            raise ValueError(
-                f"Unsupported file type: {p.suffix}. "
-                f"Supported: {', '.join(sorted(PRINTABLE_EXTENSIONS))}"
-            )
+    # The resolved (real) path must be inside an allowed root
+    allowed = _resolve_allowed_roots()
+    if not any(resolved == root or resolved.is_relative_to(root) for root in allowed):
+        raise ValueError(
+            f"File is outside the allowed directories "
+            f"(workspace, /tmp): {resolved}"
+        )
+
+    # Check the resolved file's extension (the actual file on disk)
+    if resolved.suffix.lower() not in PRINTABLE_EXTENSIONS:
+        raise ValueError(
+            f"Unsupported file type: {resolved.suffix}. "
+            f"Supported: {', '.join(sorted(PRINTABLE_EXTENSIONS))}"
+        )
 
     return resolved
 
