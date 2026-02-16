@@ -40,24 +40,34 @@ def is_image(file_path):
 def _validate_file_path(file_path: Path) -> Path:
     """Validate and resolve a file path for printing.
 
-    Guards against path traversal and restricts to printable file types.
-    Returns the resolved absolute path.
+    Guards against path traversal, symlink attacks, and restricts to
+    printable file types. Returns the resolved absolute path.
     """
-    resolved = file_path.resolve()
-
-    # Must exist and be a regular file
-    if not resolved.is_file():
+    # Check the literal path first (before resolving symlinks)
+    if not file_path.exists():
         raise ValueError(f"Not a file: {file_path}")
 
-    # Block symlinks pointing outside the original directory tree
-    # (resolve() follows symlinks, so we just check existence)
-
-    # Restrict to printable file types
-    if resolved.suffix.lower() not in PRINTABLE_EXTENSIONS:
+    # Block symlinks — prevents symlink-based information disclosure
+    # (e.g., ln -s ~/.ssh/id_rsa secrets.pdf)
+    literal = Path(file_path).absolute()
+    if literal.is_symlink():
         raise ValueError(
-            f"Unsupported file type: {resolved.suffix}. "
-            f"Supported: {', '.join(sorted(PRINTABLE_EXTENSIONS))}"
+            f"Symlinks are not allowed for security reasons: {file_path}"
         )
+
+    resolved = literal.resolve()
+
+    # Must be a regular file (not a device, directory, etc.)
+    if not resolved.is_file():
+        raise ValueError(f"Not a regular file: {file_path}")
+
+    # Restrict to printable file types (check BOTH the literal and resolved names)
+    for p in (literal, resolved):
+        if p.suffix.lower() not in PRINTABLE_EXTENSIONS:
+            raise ValueError(
+                f"Unsupported file type: {p.suffix}. "
+                f"Supported: {', '.join(sorted(PRINTABLE_EXTENSIONS))}"
+            )
 
     return resolved
 
