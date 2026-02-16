@@ -401,7 +401,6 @@ def cmd_info(args):
     field_map = [
         ("Manufacturer", "manufacturer"),
         ("ModelName", "model"),
-        ("DefaultResolution", "resolution"),
         ("ColorDevice", "color"),
         ("Throughput", "pages_per_min"),
         ("DefaultPageSize", "default_paper"),
@@ -411,6 +410,18 @@ def cmd_info(args):
         val = ppd_val(ppd_key)
         if val:
             info[json_key] = val
+
+    # Parse resolution into structured object
+    res_str = ppd_val("DefaultResolution")
+    if res_str:
+        import re as _re
+        m = _re.match(r"(\d+)(?:x(\d+))?\s*dpi", res_str, _re.IGNORECASE)
+        if m:
+            x_dpi = int(m.group(1))
+            y_dpi = int(m.group(2)) if m.group(2) else x_dpi
+            info["resolution"] = {"x_dpi": x_dpi, "y_dpi": y_dpi}
+        else:
+            info["resolution"] = res_str  # fallback to raw string
 
     # Parse paper sizes with margins
     paper_dims = {}
@@ -473,7 +484,13 @@ def cmd_info(args):
         ]
         for key, label in display_fields:
             if key in info:
-                print(f"  {label}: {info[key]}")
+                val = info[key]
+                if key == "resolution" and isinstance(val, dict):
+                    if val["x_dpi"] == val["y_dpi"]:
+                        val = f"{val['x_dpi']} dpi"
+                    else:
+                        val = f"{val['x_dpi']}x{val['y_dpi']} dpi"
+                print(f"  {label}: {val}")
 
         if slots:
             print(f"  Trays: {', '.join(slots)}")

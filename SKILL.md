@@ -83,3 +83,21 @@ Shows all CUPS options with current values and available choices.
 - All commands support `--json` for machine-readable output
 - Image conversion respects the printer's imageable area (margins) from the PPD
 - Only printable file types accepted: PDF, PNG, JPG, GIF, BMP, TIFF, WebP
+
+## Tips
+
+### Tray / Media Selection
+
+Some PPDs have empty `InputSlot` command strings, so `-o InputSlot=tray-2` alone may not work. Use the combined `media` keyword instead:
+
+```bash
+# Print to a specific tray with media type
+uv run {baseDir}/scripts/print.py print envelope.pdf -o media=A6,tray-2,envelope
+
+# Format: -o media=SIZE,TRAY,TYPE
+# SIZE: A4, A5, A6, EnvDL, EnvC5, Letter, etc.
+# TRAY: tray-1, tray-2, auto
+# TYPE: stationery, envelope, cardstock, labels, etc.
+```
+
+This passes tray selection via IPP directly, bypassing the PPD.
