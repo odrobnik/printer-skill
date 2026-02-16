@@ -251,8 +251,12 @@ def convert_image_to_pdf(image_path, specs):
     return temp_pdf.name
 
 
-def print_file(file_path, printer=None):
+def print_file(file_path, printer=None, extra_options=None):
     """Print file to printer using lp command.
+
+    Args:
+        extra_options: List of CUPS option strings like
+            ``["InputSlot=tray-1", "cupsPrintQuality=High"]``.
 
     Returns (success: bool, job_id: str or None).
     """
@@ -280,6 +284,10 @@ def print_file(file_path, printer=None):
         }
         sides = duplex_map.get(specs['duplex'], specs['duplex'])
         cmd.extend(['-o', f'sides={sides}'])
+
+    # Add any extra CUPS options
+    for opt in (extra_options or []):
+        cmd.extend(['-o', opt])
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -603,7 +611,7 @@ def cmd_print(args):
                 print(msg, file=sys.stderr)
             return 1
 
-    success, job_id = print_file(file_to_print, printer)
+    success, job_id = print_file(file_to_print, printer, extra_options=args.option)
 
     # Clean up temp file
     if temp_pdf:
@@ -658,6 +666,8 @@ def main():
     sub_print = subparsers.add_parser('print', help='Print a file (PDF or image)')
     sub_print.add_argument('file', type=Path, help='File to print')
     sub_print.add_argument('--printer', default=None, help='Printer name (default: system default)')
+    sub_print.add_argument('-o', '--option', action='append', metavar='KEY=VALUE',
+                           help='CUPS option (repeatable, e.g. -o InputSlot=tray-1)')
     sub_print.add_argument('--json', action='store_true', help='JSON output')
     sub_print.set_defaults(func=cmd_print)
 

@@ -5,7 +5,7 @@ description: >-
   margins, resolution, and duplex at runtime. Use when the user wants to
   print files (images like PNG/JPG or PDFs) or query printer capabilities.
 summary: "Print images and PDFs to any CUPS printer with PPD-aware settings."
-version: 1.1.0
+version: 1.1.1
 homepage: https://github.com/odrobnik/printer-skill
 metadata:
   openclaw:
@@ -47,11 +47,14 @@ Shows available printers with status and which is the system default.
 uv run {baseDir}/scripts/print.py print /path/to/file.pdf
 uv run {baseDir}/scripts/print.py print /path/to/image.png
 uv run {baseDir}/scripts/print.py print /path/to/file.pdf --printer "Custom_Printer"
+uv run {baseDir}/scripts/print.py print /path/to/file.pdf -o InputSlot=tray-2
+uv run {baseDir}/scripts/print.py print /path/to/file.pdf -o cupsPrintQuality=High -o sides=one-sided
 uv run {baseDir}/scripts/print.py print /path/to/file.pdf --json
 ```
 
 - **PDFs**: Sent directly to the printer with correct media/duplex settings
 - **Images** (PNG, JPG, GIF, BMP, TIFF, WebP): Converted to PDF at the printer's native DPI, centered within the printable area, then printed
+- **`-o KEY=VALUE`**: Pass any CUPS option (repeatable). Use `options` to discover available settings (tray, quality, media type, duplex, color mode).
 - Symlinks are followed but the resolved path must be inside the workspace or `/tmp`
 
 ### Printer Info
