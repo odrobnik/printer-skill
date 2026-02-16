@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+uv.lock
+README.md
+.git/
+.gitignore
