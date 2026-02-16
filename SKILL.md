@@ -2,7 +2,7 @@
 name: printer
 description: "Print images and PDFs to any CUPS printer. PPD-aware: reads paper sizes, margins, resolution, and duplex at runtime."
 summary: "Print images and PDFs to any CUPS printer with PPD-aware settings."
-version: 1.0.0
+version: 1.0.1
 homepage: https://github.com/odrobnik/printer-skill
 metadata:
   openclaw:
