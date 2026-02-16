@@ -9,6 +9,7 @@ Print images and PDFs to any CUPS printer. PPD-aware: reads paper sizes, margins
 - **PPD-aware** — reads paper size, imageable area, resolution, and duplex from the PPD file
 - **JSON output** — all commands support `--json` for machine-readable output
 - **Multi-printer** — uses system default, override per-command with `--printer`
+- **Secure** — validates file types, rejects symlinks, sanitizes printer names
 
 ## Commands
 
@@ -38,3 +39,9 @@ uv run scripts/print.py options
 ## License
 
 MIT
+
+## Documentation
+
+- [SKILL.md](SKILL.md) — agent-facing reference (commands, behavior, limitations)
+- [SETUP.md](SETUP.md) — prerequisites, configuration, and setup instructions
+- [ClawHub](https://www.clawhub.com/skills/cups-printer) — install via ClawHub registry

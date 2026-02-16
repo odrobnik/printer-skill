@@ -1,15 +1,23 @@
 ---
 name: printer
-description: "Print images and PDFs to any CUPS printer. PPD-aware: reads paper sizes, margins, resolution, and duplex at runtime."
+description: >-
+  Print images and PDFs to any CUPS printer. PPD-aware: reads paper sizes,
+  margins, resolution, and duplex at runtime. Use when the user wants to
+  print files (images like PNG/JPG or PDFs) or query printer capabilities.
 summary: "Print images and PDFs to any CUPS printer with PPD-aware settings."
-version: 1.0.2
+version: 1.0.3
 homepage: https://github.com/odrobnik/printer-skill
 metadata:
   openclaw:
     emoji: "🖨️"
     requires:
-      bins: ["lp", "lpstat", "lpoptions", "python3"]
-      python: ["Pillow"]
+      bins:
+        - python3
+        - lp
+        - lpstat
+        - lpoptions
+      python:
+        - Pillow
 ---
 
 # Printer
@@ -44,6 +52,7 @@ uv run {baseDir}/scripts/print.py print /path/to/file.pdf --json
 
 - **PDFs**: Sent directly to the printer with correct media/duplex settings
 - **Images** (PNG, JPG, GIF, BMP, TIFF, WebP): Converted to PDF at the printer's native DPI, centered within the printable area, then printed
+- Symlinks are rejected for security (prevents information disclosure)
 
 ### Printer Info
 
@@ -70,3 +79,4 @@ Shows all CUPS options with current values and available choices.
 - Uses the **system default printer** unless `--printer` is specified
 - All commands support `--json` for machine-readable output
 - Image conversion respects the printer's imageable area (margins) from the PPD
+- Only printable file types accepted: PDF, PNG, JPG, GIF, BMP, TIFF, WebP

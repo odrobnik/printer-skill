@@ -17,6 +17,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
 
 def _get_pil():
     """Lazy import PIL - only needed for image conversion."""
@@ -219,7 +222,7 @@ def convert_image_to_pdf(image_path, specs):
     pt_to_mm = 25.4 / 72.0
     w_mm = specs['page_w'] * pt_to_mm
     h_mm = specs['page_h'] * pt_to_mm
-    print(f"Generated PDF: {media} ({w_mm:.0f}×{h_mm:.0f}mm) at {dpi} DPI", file=sys.stderr)
+    print(f"[print] Generated PDF: {media} ({w_mm:.0f}×{h_mm:.0f}mm) at {dpi} DPI", file=sys.stderr)
 
     return temp_pdf.name
 
@@ -563,7 +566,7 @@ def cmd_print(args):
     # Handle images by converting to PDF first
     if is_image(file_path):
         if not args.json:
-            print("Converting image to PDF...", file=sys.stderr)
+            print("[print] Converting image to PDF...", file=sys.stderr)
         try:
             specs = get_printer_specs(printer)
             temp_pdf = convert_image_to_pdf(file_path, specs)
@@ -594,7 +597,7 @@ def cmd_print(args):
     else:
         if success:
             id_str = f" (job {job_id})" if job_id else ""
-            print(f"Sent to {printer}{id_str}")
+            print(f"[print] ✓ Sent to {printer}{id_str}")
 
     return 0 if success else 1
 
