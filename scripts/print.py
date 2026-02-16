@@ -29,11 +29,47 @@ def _get_pil():
 
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp'}
+PRINTABLE_EXTENSIONS = IMAGE_EXTENSIONS | {'.pdf'}
 
 
 def is_image(file_path):
     """Check if file is an image based on extension."""
     return file_path.suffix.lower() in IMAGE_EXTENSIONS
+
+
+def _validate_file_path(file_path: Path) -> Path:
+    """Validate and resolve a file path for printing.
+
+    Guards against path traversal and restricts to printable file types.
+    Returns the resolved absolute path.
+    """
+    resolved = file_path.resolve()
+
+    # Must exist and be a regular file
+    if not resolved.is_file():
+        raise ValueError(f"Not a file: {file_path}")
+
+    # Block symlinks pointing outside the original directory tree
+    # (resolve() follows symlinks, so we just check existence)
+
+    # Restrict to printable file types
+    if resolved.suffix.lower() not in PRINTABLE_EXTENSIONS:
+        raise ValueError(
+            f"Unsupported file type: {resolved.suffix}. "
+            f"Supported: {', '.join(sorted(PRINTABLE_EXTENSIONS))}"
+        )
+
+    return resolved
+
+
+def _validate_printer_name(name: str) -> str:
+    """Validate printer name to prevent injection via crafted names.
+
+    CUPS printer names contain only alphanumeric, hyphen, underscore, and period.
+    """
+    if not re.match(r'^[\w.\-]+$', name):
+        raise ValueError(f"Invalid printer name: {name!r}")
+    return name
 
 
 def get_default_printer():
@@ -62,9 +98,10 @@ def get_printer_specs(printer):
         'dpi': 300, 'duplex': None,
     }
 
-    ppd_path = Path(f"/etc/cups/ppd/{printer}.ppd")
+    safe_name = _validate_printer_name(printer)
+    ppd_path = Path(f"/etc/cups/ppd/{safe_name}.ppd")
     if not ppd_path.exists():
-        ppd_path = Path(f"/private/etc/cups/ppd/{printer}.ppd")
+        ppd_path = Path(f"/private/etc/cups/ppd/{safe_name}.ppd")
     if not ppd_path.exists():
         return specs
 
@@ -284,9 +321,19 @@ def cmd_info(args):
         return 1
 
     # Find PPD file
-    ppd_path = Path(f"/etc/cups/ppd/{printer}.ppd")
+    try:
+        safe_name = _validate_printer_name(printer)
+    except ValueError as e:
+        msg = str(e)
+        if args.json:
+            print(json_mod.dumps({"error": msg}))
+        else:
+            print(f"Error: {msg}", file=sys.stderr)
+        return 1
+
+    ppd_path = Path(f"/etc/cups/ppd/{safe_name}.ppd")
     if not ppd_path.exists():
-        ppd_path = Path(f"/private/etc/cups/ppd/{printer}.ppd")
+        ppd_path = Path(f"/private/etc/cups/ppd/{safe_name}.ppd")
     if not ppd_path.exists():
         msg = f"No PPD file found for {printer}"
         if args.json:
@@ -414,6 +461,16 @@ def cmd_options(args):
             print(f"Error: {msg}", file=sys.stderr)
         return 1
 
+    try:
+        printer = _validate_printer_name(printer)
+    except ValueError as e:
+        msg = str(e)
+        if args.json:
+            print(json_mod.dumps({"error": msg}))
+        else:
+            print(f"Error: {msg}", file=sys.stderr)
+        return 1
+
     result = subprocess.run(['lpoptions', '-p', printer, '-l'], capture_output=True, text=True)
     if result.returncode != 0:
         msg = f"Could not get options for {printer}"
@@ -461,8 +518,10 @@ def cmd_options(args):
 
 def cmd_print(args):
     """Print a file."""
-    if not args.file.exists():
-        msg = f"File not found: {args.file}"
+    try:
+        file_path = _validate_file_path(args.file)
+    except ValueError as e:
+        msg = str(e)
         if args.json:
             print(json_mod.dumps({"ok": False, "error": msg}))
         else:
@@ -478,16 +537,26 @@ def cmd_print(args):
             print(f"Error: {msg}", file=sys.stderr)
         return 1
 
-    file_to_print = args.file
+    try:
+        printer = _validate_printer_name(printer)
+    except ValueError as e:
+        msg = str(e)
+        if args.json:
+            print(json_mod.dumps({"ok": False, "error": msg}))
+        else:
+            print(f"Error: {msg}", file=sys.stderr)
+        return 1
+
+    file_to_print = file_path
     temp_pdf = None
 
     # Handle images by converting to PDF first
-    if is_image(args.file):
+    if is_image(file_path):
         if not args.json:
             print("Converting image to PDF...", file=sys.stderr)
         try:
             specs = get_printer_specs(printer)
-            temp_pdf = convert_image_to_pdf(args.file, specs)
+            temp_pdf = convert_image_to_pdf(file_path, specs)
             file_to_print = Path(temp_pdf)
         except Exception as e:
             msg = f"Error converting image: {e}"
@@ -507,7 +576,7 @@ def cmd_print(args):
         result = {
             "ok": success,
             "printer": printer,
-            "file": str(args.file),
+            "file": str(file_path),
         }
         if job_id:
             result["job_id"] = job_id
