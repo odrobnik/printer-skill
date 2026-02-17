@@ -5,7 +5,7 @@ description: >-
   margins, resolution, and duplex at runtime. Use when the user wants to
   print files (images like PNG/JPG or PDFs) or query printer capabilities.
 summary: "Print images and PDFs to any CUPS printer with PPD-aware settings."
-version: 1.2.1
+version: 1.2.2
 homepage: https://github.com/odrobnik/printer-skill
 metadata:
   openclaw:
