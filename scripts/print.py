@@ -251,6 +251,28 @@ def convert_image_to_pdf(image_path, specs):
     return temp_pdf.name
 
 
+def _detect_pdf_orientation(pdf_path):
+    """Detect whether a PDF's first page is portrait or landscape.
+
+    Parses the MediaBox from the raw PDF bytes.  Returns 'portrait',
+    'landscape', or None if detection fails.
+    """
+    try:
+        data = Path(pdf_path).read_bytes()[:8192]  # first 8KB is enough
+        # Match /MediaBox [x1 y1 x2 y2]  (ints or floats)
+        m = re.search(
+            rb'/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]',
+            data,
+        )
+        if m:
+            x1, y1, x2, y2 = (float(v) for v in m.groups())
+            w, h = x2 - x1, y2 - y1
+            return 'portrait' if h > w else 'landscape'
+    except Exception:
+        pass
+    return None
+
+
 def print_file(file_path, printer=None, extra_options=None):
     """Print file to printer using lp command.
 
@@ -276,9 +298,17 @@ def print_file(file_path, printer=None, extra_options=None):
         '-o', 'fit-to-page',
     ]
 
-    # Add duplex if the printer supports it (default to short-edge binding)
+    # Add duplex if the printer supports it
+    # Detect document orientation for correct binding:
+    #   portrait  → long-edge  (book-style flip left/right)
+    #   landscape → short-edge (book-style flip left/right)
     if specs['duplex']:
-        cmd.extend(['-o', 'sides=two-sided-short-edge'])
+        orientation = _detect_pdf_orientation(file_path)
+        if orientation == 'landscape':
+            cmd.extend(['-o', 'sides=two-sided-short-edge'])
+        else:
+            # Default to long-edge (portrait / unknown)
+            cmd.extend(['-o', 'sides=two-sided-long-edge'])
 
     # Add any extra CUPS options
     for opt in (extra_options or []):
