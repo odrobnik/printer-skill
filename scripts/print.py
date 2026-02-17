@@ -276,14 +276,9 @@ def print_file(file_path, printer=None, extra_options=None):
         '-o', 'fit-to-page',
     ]
 
-    # Add duplex if the printer supports it
+    # Add duplex if the printer supports it (default to short-edge binding)
     if specs['duplex']:
-        duplex_map = {
-            'DuplexNoTumble': 'two-sided-long-edge',
-            'DuplexTumble': 'two-sided-short-edge',
-        }
-        sides = duplex_map.get(specs['duplex'], specs['duplex'])
-        cmd.extend(['-o', f'sides={sides}'])
+        cmd.extend(['-o', 'sides=two-sided-short-edge'])
 
     # Add any extra CUPS options
     for opt in (extra_options or []):
